@@ -18,31 +18,31 @@
 #include <stdarg.h>
 #include <string>
 
-void LOG_INFO(log4cxx::LoggerPtr logger, const char *format, ...) {
- char log[256 * 1024];
- va_list st;
- va_start(st, format);
- vsnprintf(log, sizeof(log), format, st);
- va_end(st);
- LOG4CXX_INFO(logger, std::string(log));
+void LOG_INFO(const char *format, ...) {
+  char log[256 * 1024];
+  va_list st;
+  va_start(st, format);
+  vsnprintf(log, sizeof(log), format, st);
+  va_end(st);
+  printf("%s\n", log);
 }
 
 void LOG_ERROR(log4cxx::LoggerPtr logger, const char *format, ...) {
- char log[256 * 1024];
- va_list st;
- va_start(st, format);
- vsnprintf(log, sizeof(log), format, st);
- va_end(st);
- LOG4CXX_ERROR(logger, std::string(log));
+  char log[256 * 1024];
+  va_list st;
+  va_start(st, format);
+  vsnprintf(log, sizeof(log), format, st);
+  va_end(st);
+  printf("%s\n", log);
 }
 
 void LOG_FATAL(log4cxx::LoggerPtr logger, const char *format, ...) {
- char log[256 * 1024];
- va_list st;
- va_start(st, format);
- vsnprintf(log, sizeof(log), format, st);
- va_end(st);
- LOG4CXX_FATAL(logger, std::string(log));
+  char log[256 * 1024];
+  va_list st;
+  va_start(st, format);
+  vsnprintf(log, sizeof(log), format, st);
+  va_end(st);
+  printf("%s\n", log);
 }
 
 
