@@ -29,6 +29,40 @@ private:
     T t_;                                                                                                            
 };
 
+template<class T> class reference_wrapper { 
+public:
+    typedef T type;
+    explicit reference_wrapper(T& t): t_(&t) {}
+    operator T& () const { return *t_; }
+    T& get() const { return *t_; }
+    T* get_pointer() const { return t_; }
+private:
+    T* t_;
+};
+
+template<class T> inline reference_wrapper<T> ref(T & t){ 
+    return reference_wrapper<T>(t);
+}
+
+template<class T> inline reference_wrapper<T const> cref(T const & t) {
+    return reference_wrapper<T const>(t);
+}
+
+template<class F> struct unwrapper {
+    //必须是long，否则无论什么样的F传递进来，都会选择还函数
+    //但是当F = reference_wrapper<F>时则与预期不一致，这种
+    //根据整数参数类型区分具体使用哪个函数的方法很蛋疼。
+    static inline F & unwrap( F & f, long) {
+        return f;
+    }
+    
+    //当传递参数0的时候，编译器默认其为int，所以当F = reference_wrapper<F>时，
+    //通过0（默认为int）选择此函数，否则将会选择上面的函数，与预期不一致
+    template<class F2> static inline F2 & unwrap( reference_wrapper<F2> rf, int) {
+        return rf.get();
+    }
+};
+
 template<class A1> struct storage1 {
     explicit storage1( A1 a1 ): a1_( a1 ) {}
     A1 a1_;
@@ -45,8 +79,8 @@ public:
 
     template<class T> T & operator[] (value<T> & v) const { return v.get(); }
     
-    template<class R, class F, class A> R operator()(type<R>, F & f, A &){
-        return f();
+    template<class R, class F, class A> R operator()(type<R>, F & f, A &) {
+        return unwrapper<F>::unwrap(f, 0)();
     }
 };
 
@@ -63,8 +97,8 @@ public:
       return v.get(); 
     }
     
-    template<class R, class F, class A> R operator()(type<R>, F & f, A & a){   
-        return f(a[base_type::a1_]);
+    template<class R, class F, class A> R operator()(type<R>, F & f, A & a){
+        return unwrapper<F>::unwrap(f, 0)(a[base_type::a1_]);
     }
 };
 
@@ -86,8 +120,9 @@ public:
       return v.get(); 
     }
     
-    template<class R, class F, class A> R operator()(type<R>, F & f, A & a) {   
-        return f(a[base_type::a1_], a[base_type::a2_]);
+    template<class R, class F, class A> R operator()(type<R>, F & f, A & a)
+    {
+        return unwrapper<F>::unwrap(f, 0)(a[base_type::a1_], a[base_type::a2_]);
     }
 };
 
@@ -215,6 +250,7 @@ template<class A1, class A2> struct list_av_2 {
 };
 
 //仿函数 
+  
 template<class R, class F> bind_t<R, F, list0> bind(F f) {
   typedef list0 list_type;
   return bind_t<R, F, list_type>(f, list_type());
@@ -279,10 +315,19 @@ template<class R, class T,
 }
 
 struct AddOp{
-  AddOp() {}
+  AddOp() { }
   int operator()(int a, int b) {
     return a + b;
   }
+};
+
+struct AddOpRef {
+  AddOpRef() { s_ = 0; }
+  int operator()(int a) {
+    s_ += a;
+    return s_;
+  }
+  int s_;
 };
 
 int add10(int a) {
@@ -291,6 +336,15 @@ int add10(int a) {
 
 int add(int a, int b) {
   return a + b;
+}
+
+int add10ref(int &a) {
+  a = a + 10;
+  return a;
+}
+
+void test() {
+  printf("I am in test\n");
 }
 
 class Calculator{
@@ -306,14 +360,28 @@ class Calculator{
 int main() {
   arg<1> _1;
   arg<2> _2;
-  
+ 
+  bind(test)();
+
   //仿函数比较特殊，必须手动指定返回值类型,本代码对仿函数处理不正确
   AddOp addop;
   printf("%d\n", bind<int, AddOp, arg<1>, arg<2> >(addop, _1, _2)(1, 2));
   printf("%d\n", bind<int>(addop, _1, _2)(1, 2));
+  
+  
+  AddOpRef addopref;
+  printf("%d\n", bind<int>(ref(addopref), _1)(10));
+  printf("%d\n", addopref.s_);
+  
   //普通函数 
   printf("%d\n", bind(add, 2, 3)());
   printf("%d\n", bind(add, _1, _2)(2, 3));
+  
+  //普通函数传递引用参数
+  int a = 1;
+  printf("%d\n", bind(add10ref, _1)(a));
+  printf("%d\n", a);
+
   //类成员函数
   Calculator caltor;
   printf("%d\n", bind(&Calculator::add10, &caltor, _1)(1));
